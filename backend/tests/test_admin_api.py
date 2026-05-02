@@ -148,3 +148,116 @@ def test_admin_revokes_access_grant(
     assert revoke.status_code == 204
     follow = admin_client.delete(f"/admin/access-grants/{grant_id}")
     assert follow.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Void (audit-correct delete)
+# ---------------------------------------------------------------------------
+
+
+def _submit_one(intern_client, property_block_a, sensor_zone_block_a_roof):
+    """Helper: submit a valid observation and return its JSON body."""
+    r = intern_client.post(
+        "/observations",
+        data={
+            "property_id": str(property_block_a.id),
+            "sensor_zone_id": str(sensor_zone_block_a_roof.id),
+            "observation_type": "Anomaly",
+            "description": "Original entry to test the void workflow end-to-end.",
+            "severity": "Watch",
+        },
+    )
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def test_admin_voids_observation(
+    admin_client, intern_client, property_block_a, sensor_zone_block_a_roof
+):
+    entry = _submit_one(intern_client, property_block_a, sensor_zone_block_a_roof)
+    original_hash = entry["entry_hash"]
+
+    r = admin_client.patch(
+        f"/admin/observations/{entry['id']}/void",
+        json={"reason": "Submitted in error during smoke test."},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["voided"] is True
+    assert body["void_reason"] == "Submitted in error during smoke test."
+    assert body["voided_by"] is not None
+    assert body["voided_at"] is not None
+
+    # CRITICAL: void must NOT mutate any chain-relevant field.
+    assert body["entry_hash"] == original_hash
+    assert body["prev_hash"] == entry["prev_hash"]
+    assert body["chain_sequence"] == entry["chain_sequence"]
+
+
+def test_void_does_not_break_chain_verification(
+    admin_client, intern_client, property_block_a, sensor_zone_block_a_roof
+):
+    entry = _submit_one(intern_client, property_block_a, sensor_zone_block_a_roof)
+    admin_client.patch(
+        f"/admin/observations/{entry['id']}/void",
+        json={"reason": "Test entry — voided to keep the live chain clean."},
+    )
+
+    # Per-entry verify still says the entry is valid.
+    v = admin_client.get(f"/observations/{entry['id']}/verify")
+    assert v.status_code == 200
+    assert v.json()["valid"] is True
+    assert v.json()["chain_intact"] is True
+
+    # Full audit walk still says the chain is valid.
+    audit = admin_client.get("/admin/chain/verify").json()
+    assert audit["chain_valid"] is True
+    assert audit["broken_links"] == []
+    assert audit["total_entries"] == 1
+
+
+def test_voiding_already_voided_returns_409(
+    admin_client, intern_client, property_block_a, sensor_zone_block_a_roof
+):
+    entry = _submit_one(intern_client, property_block_a, sensor_zone_block_a_roof)
+    first = admin_client.patch(
+        f"/admin/observations/{entry['id']}/void",
+        json={"reason": "First void of the smoke entry."},
+    )
+    assert first.status_code == 200
+
+    second = admin_client.patch(
+        f"/admin/observations/{entry['id']}/void",
+        json={"reason": "Trying to double-void."},
+    )
+    assert second.status_code == 409
+
+
+def test_intern_cannot_void(
+    intern_client, property_block_a, sensor_zone_block_a_roof
+):
+    entry = _submit_one(intern_client, property_block_a, sensor_zone_block_a_roof)
+    r = intern_client.patch(
+        f"/admin/observations/{entry['id']}/void",
+        json={"reason": "Trying to void my own entry as intern."},
+    )
+    assert r.status_code == 403
+
+
+def test_void_requires_minimum_reason_length(
+    admin_client, intern_client, property_block_a, sensor_zone_block_a_roof
+):
+    entry = _submit_one(intern_client, property_block_a, sensor_zone_block_a_roof)
+    r = admin_client.patch(
+        f"/admin/observations/{entry['id']}/void",
+        json={"reason": "x"},
+    )
+    assert r.status_code == 422
+
+
+def test_void_unknown_observation_returns_404(admin_client):
+    r = admin_client.patch(
+        f"/admin/observations/{uuid.uuid4()}/void",
+        json={"reason": "Trying to void something that does not exist."},
+    )
+    assert r.status_code == 404

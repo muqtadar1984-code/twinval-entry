@@ -121,8 +121,22 @@ class ObservationEntry(Base):
         DateTime(timezone=True), nullable=True
     )
 
+    # Void: audit-correct alternative to delete. Sets these flags but never
+    # mutates entry_hash / prev_hash, so chain verification keeps working.
+    voided: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, index=True
+    )
+    voided_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    voided_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    void_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     intern = relationship("User", foreign_keys=[intern_id])
     reviewer = relationship("User", foreign_keys=[reviewed_by])
+    voider = relationship("User", foreign_keys=[voided_by])
     property = relationship("Property", foreign_keys=[property_id])
     sensor_zone = relationship("SensorZone", foreign_keys=[sensor_zone_id])
     owner_profile = relationship("OwnerProfile", foreign_keys=[owner_profile_id])

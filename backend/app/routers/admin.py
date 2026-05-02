@@ -19,6 +19,7 @@ from app.schemas.observation import (
     ObservationListItem,
     ObservationOut,
     ReviewRequest,
+    VoidRequest,
 )
 from app.schemas.user import UserOut, UserRegisterRequest
 from app.services.auth import hash_password
@@ -96,6 +97,36 @@ def review_observation(
     entry.reviewer_note = body.reviewer_note
     entry.reviewed_by = admin.id
     entry.reviewed_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@router.patch("/observations/{entry_id}/void", response_model=ObservationOut)
+def void_observation(
+    entry_id: uuid.UUID,
+    body: VoidRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """
+    Audit-correct alternative to delete. Marks the entry as voided with a
+    reason — the row, entry_hash, prev_hash and chain_sequence are NOT
+    touched, so the chain remains verifiable. Already-voided entries
+    return 409.
+    """
+    entry = db.get(ObservationEntry, entry_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="observation not found")
+    if entry.voided:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="observation already voided",
+        )
+    entry.voided = True
+    entry.voided_by = admin.id
+    entry.voided_at = datetime.now(timezone.utc)
+    entry.void_reason = body.reason
     db.commit()
     db.refresh(entry)
     return entry

@@ -52,6 +52,11 @@ class ObservationOut(BaseModel):
     reviewed_by: Optional[uuid.UUID]
     reviewed_at: Optional[datetime]
 
+    voided: bool
+    voided_at: Optional[datetime]
+    voided_by: Optional[uuid.UUID]
+    void_reason: Optional[str]
+
 
 class ObservationListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -70,6 +75,7 @@ class ObservationListItem(BaseModel):
     entry_hash: str
     chain_sequence: int
     reviewed: bool
+    voided: bool
 
 
 class ObservationVerifyOut(BaseModel):
@@ -81,3 +87,13 @@ class ObservationVerifyOut(BaseModel):
 
 class ReviewRequest(BaseModel):
     reviewer_note: Optional[str] = Field(default=None, max_length=2000)
+
+
+class VoidRequest(BaseModel):
+    """
+    Required reason for voiding an observation. Voided entries stay in the
+    chain — the row + entry_hash are immutable — but get a `voided=true`
+    flag plus this audit reason so reviewers can see why it was retracted.
+    """
+
+    reason: str = Field(min_length=5, max_length=2000)

@@ -168,6 +168,10 @@ export const admin = {
     http
       .patch<Observation>(`/admin/observations/${id}/review`, { reviewer_note })
       .then((r) => r.data),
+  void: (id: UUID, reason: string) =>
+    http
+      .patch<Observation>(`/admin/observations/${id}/void`, { reason })
+      .then((r) => r.data),
   chainVerify: () =>
     http.get<ChainAuditResult>("/admin/chain/verify").then((r) => r.data),
   registerUser: (body: UserRegister) =>

@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, ShieldAlert, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle2, ShieldAlert, ShieldCheck, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -25,6 +25,11 @@ export function ObservationDetailPage() {
   const [reviewing, setReviewing] = useState(false);
   const [reviewNote, setReviewNote] = useState("");
   const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const [voidPanelOpen, setVoidPanelOpen] = useState(false);
+  const [voiding, setVoiding] = useState(false);
+  const [voidReason, setVoidReason] = useState("");
+  const [voidError, setVoidError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -63,6 +68,26 @@ export function ObservationDetailPage() {
     }
   }
 
+  async function onVoid() {
+    if (!id) return;
+    if (voidReason.trim().length < 5) {
+      setVoidError("Reason must be at least 5 characters.");
+      return;
+    }
+    setVoiding(true);
+    setVoidError(null);
+    try {
+      const updated = await adminApi.void(id, voidReason.trim());
+      setEntry(updated);
+      setVoidReason("");
+      setVoidPanelOpen(false);
+    } catch (e: any) {
+      setVoidError(e?.response?.data?.detail || "Could not void this entry.");
+    } finally {
+      setVoiding(false);
+    }
+  }
+
   if (error) {
     return (
       <div className="card p-6 text-sm text-danger-700">{error}</div>
@@ -93,8 +118,37 @@ export function ObservationDetailPage() {
               <CheckCircle2 className="h-3 w-3" /> reviewed
             </span>
           )}
+          {entry.voided && (
+            <span className="pill border border-danger/30 bg-danger-50 text-danger-700 font-semibold">
+              <XCircle className="h-3 w-3" /> VOIDED
+            </span>
+          )}
         </div>
       </div>
+
+      {/* Voided banner */}
+      {entry.voided && (
+        <div className="card mb-4 border-danger/30 bg-danger-50 p-4">
+          <div className="flex items-start gap-2 text-danger-700">
+            <Ban className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <div className="text-sm">
+              <div className="font-semibold">This entry has been voided</div>
+              <div className="mt-1 text-ink-muted">
+                Voided on {formatDate(entry.voided_at)}
+              </div>
+              {entry.void_reason && (
+                <div className="mt-2 whitespace-pre-wrap text-ink">
+                  Reason: <span className="text-ink-muted">{entry.void_reason}</span>
+                </div>
+              )}
+              <div className="mt-2 text-xs text-ink-subtle">
+                The row, hash, and chain position are immutable — voiding only flags
+                the entry as retracted. Chain integrity is preserved.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Photo */}
       {entry.photo_url && !entry.photo_url.startsWith("local-stub://") && (
@@ -102,17 +156,17 @@ export function ObservationDetailPage() {
           <img
             src={entry.photo_url}
             alt="Observation photo"
-            className="w-full max-h-96 object-cover"
+            className={`w-full max-h-96 object-cover ${entry.voided ? "opacity-50" : ""}`}
           />
         </div>
       )}
 
       {/* Description */}
-      <div className="card p-5">
+      <div className={`card p-5 ${entry.voided ? "opacity-70" : ""}`}>
         <h2 className="text-xs font-medium uppercase tracking-wide text-ink-subtle">
           Description
         </h2>
-        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink">
+        <p className={`mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink ${entry.voided ? "line-through decoration-danger/40" : ""}`}>
           {entry.description}
         </p>
       </div>
@@ -169,7 +223,7 @@ export function ObservationDetailPage() {
       </div>
 
       {/* Admin review */}
-      {user?.role === "admin" && (
+      {user?.role === "admin" && !entry.voided && (
         <div className="card mt-4 p-5">
           <h2 className="text-xs font-medium uppercase tracking-wide text-ink-subtle">
             Admin review
@@ -205,6 +259,65 @@ export function ObservationDetailPage() {
                 {reviewing ? <InlineSpinner /> : "Mark as reviewed"}
               </button>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Admin void */}
+      {user?.role === "admin" && !entry.voided && (
+        <div className="card mt-4 p-5">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-subtle">
+            Void this entry
+          </h2>
+          <p className="mt-1 text-xs text-ink-muted">
+            Audit-correct alternative to delete. The row stays in the chain forever
+            and chain verification keeps working — but the entry is flagged as
+            retracted, with your name + timestamp + reason recorded.
+          </p>
+          {voidPanelOpen ? (
+            <div className="mt-3 space-y-3">
+              <textarea
+                rows={3}
+                className="input"
+                placeholder="Why are you voiding this entry? (e.g. submitted in error, duplicate, wrong property)"
+                value={voidReason}
+                onChange={(e) => setVoidReason(e.target.value)}
+                disabled={voiding}
+              />
+              {voidError && <p className="text-xs text-danger">{voidError}</p>}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVoidPanelOpen(false);
+                    setVoidReason("");
+                    setVoidError(null);
+                  }}
+                  disabled={voiding}
+                  className="btn-secondary flex-1 justify-center"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={onVoid}
+                  disabled={voiding || voidReason.trim().length < 5}
+                  className="btn-danger flex-1 justify-center"
+                >
+                  {voiding ? <InlineSpinner /> : <Ban className="h-4 w-4" />}
+                  Confirm void
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setVoidPanelOpen(true)}
+              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-danger/30 bg-surface px-3 py-2 text-sm font-medium text-danger hover:bg-danger-50"
+            >
+              <Ban className="h-4 w-4" />
+              Void this entry
+            </button>
           )}
         </div>
       )}

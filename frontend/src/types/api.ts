@@ -175,6 +175,10 @@ export interface Observation {
   reviewer_note: string | null;
   reviewed_by: UUID | null;
   reviewed_at: string | null;
+  voided: boolean;
+  voided_at: string | null;
+  voided_by: UUID | null;
+  void_reason: string | null;
 }
 
 export interface ObservationListItem {
@@ -192,6 +196,7 @@ export interface ObservationListItem {
   entry_hash: string;
   chain_sequence: number;
   reviewed: boolean;
+  voided: boolean;
 }
 
 export interface ObservationVerifyResult {

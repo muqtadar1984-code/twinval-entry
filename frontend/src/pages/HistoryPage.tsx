@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, FileQuestion } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileQuestion, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -120,13 +120,18 @@ export function HistoryPage() {
                 {items.map((row) => (
                   <tr key={row.id} className="text-sm hover:bg-canvas">
                     <td className="px-5 py-3">
-                      <Link to={`/observations/${row.id}`}>
+                      <Link to={`/observations/${row.id}`} className="inline-flex items-center gap-2">
                         <EntryRefId refId={row.entry_ref_id} />
+                        {row.voided && (
+                          <span className="pill border border-danger/30 bg-danger-50 text-danger-700 font-semibold">
+                            <XCircle className="h-3 w-3" /> VOIDED
+                          </span>
+                        )}
                       </Link>
                     </td>
                     <td className="px-5 py-3 text-ink-muted">{formatDateShort(row.submitted_at)}</td>
-                    <td className="px-5 py-3">
-                      <div className="font-medium text-ink">{row.property_name}</div>
+                    <td className={`px-5 py-3 ${row.voided ? "opacity-60" : ""}`}>
+                      <div className={`font-medium text-ink ${row.voided ? "line-through" : ""}`}>{row.property_name}</div>
                       <div className="text-xs text-ink-subtle">
                         {row.building_label} · {row.zone_label}
                       </div>
@@ -152,10 +157,17 @@ export function HistoryPage() {
                     className="block px-4 py-3.5 hover:bg-canvas"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <EntryRefId refId={row.entry_ref_id} />
+                      <div className="flex items-center gap-2">
+                        <EntryRefId refId={row.entry_ref_id} />
+                        {row.voided && (
+                          <span className="pill border border-danger/30 bg-danger-50 text-danger-700 font-semibold">
+                            <XCircle className="h-3 w-3" /> VOIDED
+                          </span>
+                        )}
+                      </div>
                       <SeverityBadge severity={row.severity} />
                     </div>
-                    <div className="mt-1 text-sm text-ink">
+                    <div className={`mt-1 text-sm text-ink ${row.voided ? "line-through opacity-60" : ""}`}>
                       {row.property_name}
                       <span className="text-ink-subtle">
                         {" "}
