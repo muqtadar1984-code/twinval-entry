@@ -27,6 +27,8 @@ USER twinval
 
 EXPOSE 8000
 
-# Run migrations on every boot (idempotent), then start uvicorn.
-# Railway sets $PORT — fall back to 8000 for local docker runs.
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Migrations are NOT run here — they're handled by:
+#   - docker-compose: explicit command override that wraps alembic + uvicorn
+#   - Railway:        preDeployCommand in railway.json
+# This keeps container start fast and predictable.
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
