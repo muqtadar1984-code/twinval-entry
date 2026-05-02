@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.local
+.vite
+.DS_Store
+
+# tsc -b project-reference build artifacts
+vite.config.js
+vite.config.d.ts
+*.tsbuildinfo

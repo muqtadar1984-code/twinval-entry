@@ -1,0 +1,56 @@
+# Local development stack: postgres + backend (with hot reload).
+# Frontend runs separately via `npm run dev` so Vite's dev server stays
+# fast and incremental — no point containerising it.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: twinval-portal-postgres
+    environment:
+      POSTGRES_USER: twinval
+      POSTGRES_PASSWORD: twinval
+      POSTGRES_DB: twinval_portal
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U twinval -d twinval_portal"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: twinval-portal-backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://twinval:twinval@postgres:5432/twinval_portal
+      JWT_SECRET: dev-secret-change-me
+      ACCESS_TOKEN_TTL_MINUTES: "60"
+      INITIAL_ADMIN_EMAIL: admin@twinval.local
+      INITIAL_ADMIN_PASSWORD: change-me-on-first-login
+      INITIAL_ADMIN_NAME: Local Admin
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+      # Photo storage runs in stub mode when these are blank — uploads
+      # return synthetic local-stub:// URLs. Fill in to test real R2/S3.
+      S3_ENDPOINT_URL: ""
+      S3_BUCKET: ""
+      S3_ACCESS_KEY_ID: ""
+      S3_SECRET_ACCESS_KEY: ""
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # Mount source for hot reload during dev
+      - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+volumes:
+  postgres_data:
