@@ -15,6 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models._enum_helper import enum_values
 
 
 class StakeholderRoleInProperty(str, enum.Enum):
@@ -58,7 +59,11 @@ class PropertyStakeholder(Base):
         index=True,
     )
     role_in_property: Mapped[StakeholderRoleInProperty] = mapped_column(
-        Enum(StakeholderRoleInProperty, name="stakeholder_role_in_property"),
+        Enum(
+            StakeholderRoleInProperty,
+            name="stakeholder_role_in_property",
+            values_callable=enum_values,
+        ),
         nullable=False,
     )
     share_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)

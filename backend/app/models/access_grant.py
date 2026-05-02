@@ -12,6 +12,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models._enum_helper import enum_values
 from app.models.stream import Stream
 
 
@@ -49,10 +50,12 @@ class AccessGrant(Base):
     )
 
     scope_kind: Mapped[AccessScopeKind] = mapped_column(
-        Enum(AccessScopeKind, name="access_scope_kind"), nullable=False
+        Enum(AccessScopeKind, name="access_scope_kind", values_callable=enum_values),
+        nullable=False,
     )
     scope_stream: Mapped[Stream | None] = mapped_column(
-        Enum(Stream, name="stream"), nullable=True
+        Enum(Stream, name="stream", values_callable=enum_values),
+        nullable=True,
     )
     scope_owner_profile_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True),

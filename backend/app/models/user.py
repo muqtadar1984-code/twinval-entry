@@ -6,6 +6,7 @@ from sqlalchemy import DateTime, Enum, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.models._enum_helper import enum_values
 
 
 class UserRole(str, enum.Enum):
@@ -24,7 +25,9 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="user_role"), nullable=False, default=UserRole.INTERN
+        Enum(UserRole, name="user_role", values_callable=enum_values),
+        nullable=False,
+        default=UserRole.INTERN,
     )
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(

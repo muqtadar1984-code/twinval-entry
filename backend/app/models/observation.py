@@ -15,6 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models._enum_helper import enum_values
 from app.models.stream import Stream
 
 
@@ -88,15 +89,20 @@ class ObservationEntry(Base):
     zone_label: Mapped[str] = mapped_column(String(120), nullable=False)
     owner_profile_name: Mapped[str] = mapped_column(String(200), nullable=False)
     stream: Mapped[Stream] = mapped_column(
-        Enum(Stream, name="stream"), nullable=False, index=True
+        Enum(Stream, name="stream", values_callable=enum_values),
+        nullable=False,
+        index=True,
     )
 
     observation_type: Mapped[ObservationType] = mapped_column(
-        Enum(ObservationType, name="observation_type"), nullable=False
+        Enum(ObservationType, name="observation_type", values_callable=enum_values),
+        nullable=False,
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)
     severity: Mapped[Severity] = mapped_column(
-        Enum(Severity, name="severity"), nullable=False, index=True
+        Enum(Severity, name="severity", values_callable=enum_values),
+        nullable=False,
+        index=True,
     )
     photo_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 

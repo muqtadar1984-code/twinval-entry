@@ -7,6 +7,7 @@ from sqlalchemy import DateTime, Enum, ForeignKey, Numeric, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models._enum_helper import enum_values
 
 
 class PropertyStatus(str, enum.Enum):
@@ -45,7 +46,7 @@ class Property(Base):
     )
 
     status: Mapped[PropertyStatus] = mapped_column(
-        Enum(PropertyStatus, name="property_status"),
+        Enum(PropertyStatus, name="property_status", values_callable=enum_values),
         nullable=False,
         default=PropertyStatus.ACTIVE,
     )
