@@ -24,13 +24,22 @@ limiter = Limiter(key_func=get_remote_address)
 
 
 def _set_auth_cookies(response: Response, access: str, refresh: str, secure: bool) -> None:
+    """
+    Production runs the frontend at twinval.com and the backend at a Railway
+    domain — cross-origin. Browsers only attach cookies to cross-origin
+    requests when the cookie is `SameSite=None; Secure`. For local dev over
+    plain HTTP, fall back to `Lax` (the vite proxy keeps it same-origin
+    anyway, so Lax suffices and avoids the Secure-required-with-None
+    constraint that browsers impose on http origins).
+    """
     settings = get_settings()
+    samesite = "none" if secure else "lax"
     response.set_cookie(
         "access_token",
         access,
         httponly=True,
         secure=secure,
-        samesite="lax",
+        samesite=samesite,
         max_age=settings.access_token_ttl_minutes * 60,
         path="/",
     )
@@ -39,7 +48,7 @@ def _set_auth_cookies(response: Response, access: str, refresh: str, secure: boo
         refresh,
         httponly=True,
         secure=secure,
-        samesite="lax",
+        samesite=samesite,
         max_age=settings.refresh_token_ttl_days * 86400,
         path="/auth/refresh",
     )
