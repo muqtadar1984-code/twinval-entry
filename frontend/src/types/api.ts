@@ -94,6 +94,14 @@ export interface OwnerProfileCreate {
   contact_phone?: string;
 }
 
+export interface OwnerProfileUpdate {
+  legal_name?: string;
+  legal_id?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  kyc_status?: KycStatus;
+}
+
 // ---------------------------------------------------------------------------
 // Properties
 // ---------------------------------------------------------------------------

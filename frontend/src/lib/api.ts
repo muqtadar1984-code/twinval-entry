@@ -13,6 +13,7 @@ import type {
   ObservationVerifyResult,
   OwnerProfile,
   OwnerProfileCreate,
+  OwnerProfileUpdate,
   Page,
   Property,
   PropertyCreate,
@@ -71,6 +72,10 @@ export const ownerProfiles = {
       .then((r) => r.data),
   get: (id: UUID) =>
     http.get<OwnerProfile>(`/owner-profiles/${id}`).then((r) => r.data),
+  update: (id: UUID, body: OwnerProfileUpdate) =>
+    http
+      .patch<OwnerProfile>(`/owner-profiles/${id}`, body)
+      .then((r) => r.data),
 };
 
 // ---------------------------------------------------------------------------

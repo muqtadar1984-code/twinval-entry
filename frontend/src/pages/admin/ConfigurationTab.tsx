@@ -1,10 +1,10 @@
-import { Building2, MapPin, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Building2, ChevronDown, MapPin, Users } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
-import { LoadingState } from "../../components/LoadingState";
+import { InlineSpinner, LoadingState } from "../../components/LoadingState";
 import { ownerProfiles as ownerApi, properties as propApi, sensorZones as zoneApi } from "../../lib/api";
 import { formatDateShort } from "../../lib/format";
-import type { OwnerProfile, Property, SensorZone } from "../../types/api";
+import type { KycStatus, OwnerProfile, Property, SensorZone } from "../../types/api";
 import { STREAM_LABELS } from "../../types/api";
 
 type Section = "owners" | "properties" | "zones";
@@ -57,6 +57,14 @@ function SectionChip({
   );
 }
 
+const KYC_PILL: Record<KycStatus, string> = {
+  verified: "bg-accent-50 text-accent-700 border border-accent/30",
+  failed: "bg-danger-50 text-danger-700 border border-danger/30",
+  pending: "bg-warning-50 text-warning-700 border border-warning/30",
+};
+
+const KYC_OPTIONS: KycStatus[] = ["pending", "verified", "failed"];
+
 function OwnersList() {
   const [items, setItems] = useState<OwnerProfile[] | null>(null);
   useEffect(() => {
@@ -65,6 +73,12 @@ function OwnersList() {
       .then((p) => setItems(p.items))
       .catch(() => setItems([]));
   }, []);
+
+  function patchOwner(updated: OwnerProfile) {
+    setItems((prev) =>
+      prev ? prev.map((o) => (o.id === updated.id ? updated : o)) : prev
+    );
+  }
 
   if (items === null) return <LoadingState />;
 
@@ -82,23 +96,103 @@ function OwnersList() {
                 <div className="mt-0.5 text-xs text-ink-subtle">
                   {STREAM_LABELS[o.stream]}
                   {o.legal_id ? ` · ${o.legal_id}` : ""}
+                  {o.contact_email ? ` · ${o.contact_email}` : ""}
                 </div>
               </div>
-              <span
-                className={`pill ${
-                  o.kyc_status === "verified"
-                    ? "bg-accent-50 text-accent-700"
-                    : o.kyc_status === "failed"
-                    ? "bg-danger-50 text-danger-700"
-                    : "bg-warning-50 text-warning-700"
-                }`}
-              >
-                KYC: {o.kyc_status}
-              </span>
+              <KycEditor owner={o} onUpdated={patchOwner} />
             </div>
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function KycEditor({
+  owner,
+  onUpdated,
+}: {
+  owner: OwnerProfile;
+  onUpdated: (o: OwnerProfile) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Click-outside to close
+  useEffect(() => {
+    if (!open) return;
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [open]);
+
+  async function setKyc(status: KycStatus) {
+    if (status === owner.kyc_status) {
+      setOpen(false);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await ownerApi.update(owner.id, { kyc_status: status });
+      onUpdated(updated);
+      setOpen(false);
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || "Could not update KYC.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((s) => !s)}
+        className={`pill cursor-pointer transition ${KYC_PILL[owner.kyc_status]} hover:brightness-95`}
+        title="Click to update KYC status"
+      >
+        KYC: {owner.kyc_status}
+        <ChevronDown className="h-3 w-3" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-56 rounded-lg border border-border bg-surface p-1.5 shadow-elevated">
+          <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink-subtle">
+            Update KYC status
+          </div>
+          {KYC_OPTIONS.map((status) => {
+            const current = status === owner.kyc_status;
+            return (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setKyc(status)}
+                disabled={busy}
+                className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-canvas ${
+                  current ? "font-semibold text-primary" : "text-ink"
+                }`}
+              >
+                <span className="capitalize">{status}</span>
+                {busy && status !== owner.kyc_status ? (
+                  <InlineSpinner className="h-3.5 w-3.5" />
+                ) : current ? (
+                  <span className="text-xs text-ink-subtle">current</span>
+                ) : null}
+              </button>
+            );
+          })}
+          {error && (
+            <p className="px-2 pt-1 text-xs text-danger">{error}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
