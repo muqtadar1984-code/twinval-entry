@@ -1,14 +1,16 @@
 import { useState } from "react";
 
+import { ActivityTab } from "./admin/ActivityTab";
 import { AdminChainAuditTab } from "./admin/ChainAuditTab";
 import { AdminConfigurationTab } from "./admin/ConfigurationTab";
 import { AdminInternsTab } from "./admin/InternsTab";
 import { AdminObservationsTab } from "./admin/ObservationsTab";
 import { PropertiesAnalyticsTab } from "./admin/PropertiesAnalyticsTab";
 
-type Tab = "properties" | "observations" | "audit" | "config" | "interns";
+type Tab = "activity" | "properties" | "observations" | "audit" | "config" | "interns";
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: "activity", label: "Activity" },
   { id: "properties", label: "Properties" },
   { id: "observations", label: "All Observations" },
   { id: "audit", label: "Chain Audit" },
@@ -17,7 +19,7 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export function AdminPage() {
-  const [tab, setTab] = useState<Tab>("properties");
+  const [tab, setTab] = useState<Tab>("activity");
 
   return (
     <div>
@@ -50,6 +52,7 @@ export function AdminPage() {
         </nav>
       </div>
 
+      {tab === "activity" && <ActivityTab />}
       {tab === "properties" && <PropertiesAnalyticsTab />}
       {tab === "observations" && <AdminObservationsTab />}
       {tab === "audit" && <AdminChainAuditTab />}

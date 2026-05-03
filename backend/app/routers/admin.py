@@ -13,6 +13,7 @@ from app.models.observation import ObservationEntry, Severity
 from app.models.stream import Stream
 from app.models.user import User
 from app.schemas.access_grant import AccessGrantCreate, AccessGrantOut
+from app.schemas.activity import ActivityResponse
 from app.schemas.chain_audit import ChainAuditOut
 from app.schemas.common import Page
 from app.schemas.dashboard import DashboardResponse
@@ -23,6 +24,7 @@ from app.schemas.observation import (
     VoidRequest,
 )
 from app.schemas.user import UserOut, UserRegisterRequest
+from app.services.activity import fetch_activity
 from app.services.auth import hash_password
 from app.services.dashboard import fetch_dashboard
 from app.services.hash_chain import verify_chain
@@ -134,6 +136,28 @@ def void_observation(
     db.commit()
     db.refresh(entry)
     return entry
+
+
+# ---------------------------------------------------------------------------
+# Activity dashboard — pending review, stale zones, trend, photo coverage
+# ---------------------------------------------------------------------------
+
+
+@router.get("/dashboard/activity", response_model=ActivityResponse)
+def dashboard_activity(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+    stale_threshold_days: int = Query(default=14, ge=1, le=365),
+):
+    """
+    Single endpoint that returns the four operational signals an admin
+    wants on landing:
+      - pending review queue (Watch / Alert, oldest first)
+      - stale zones (no observations in `stale_threshold_days`)
+      - weekly observation buckets for a 12-week trend chart
+      - photo coverage (% of Alerts with a photo)
+    """
+    return fetch_activity(db, stale_threshold_days=stale_threshold_days)
 
 
 # ---------------------------------------------------------------------------

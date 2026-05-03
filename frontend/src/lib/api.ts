@@ -3,6 +3,7 @@ import axios, { AxiosInstance } from "axios";
 import type {
   AccessGrant,
   AccessGrantCreate,
+  ActivityResponse,
   ChainAuditResult,
   DashboardResponse,
   LoginRequest,
@@ -180,6 +181,10 @@ export const admin = {
       .then((r) => r.data),
   chainVerify: () =>
     http.get<ChainAuditResult>("/admin/chain/verify").then((r) => r.data),
+  activity: (params?: { stale_threshold_days?: number }) =>
+    http
+      .get<ActivityResponse>("/admin/dashboard/activity", { params })
+      .then((r) => r.data),
   dashboardProperties: (params?: {
     stream?: Stream[];
     severity?: Severity[];

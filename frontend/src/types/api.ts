@@ -256,6 +256,65 @@ export interface AccessGrant {
 }
 
 // ---------------------------------------------------------------------------
+// Activity dashboard
+// ---------------------------------------------------------------------------
+
+export interface PendingReviewItem {
+  entry_id: UUID;
+  entry_ref_id: string;
+  submitted_at: string;
+  property_name: string;
+  building_label: string;
+  zone_label: string;
+  severity: Severity;
+  observation_type: ObservationType;
+  description_excerpt: string;
+  intern_name: string;
+  days_waiting: number;
+}
+
+export interface StaleZoneItem {
+  zone_id: UUID;
+  property_id: UUID;
+  property_name: string;
+  building_label: string;
+  zone_label: string;
+  owner_name: string;
+  stream: Stream;
+  last_submitted_at: string | null;
+  days_stale: number | null;
+  never_observed: boolean;
+}
+
+export interface WeeklyBucket {
+  week_start: string; // ISO date "YYYY-MM-DD"
+  normal: number;
+  watch: number;
+  alert: number;
+  total: number;
+}
+
+export interface PhotoCoverage {
+  total_alerts: number;
+  alerts_with_photo: number;
+  alert_coverage_pct: number;
+  total_observations: number;
+  observations_with_photo: number;
+  overall_coverage_pct: number;
+}
+
+export interface ActivityResponse {
+  pending_review: PendingReviewItem[];
+  pending_review_total: number;
+  stale_zones: StaleZoneItem[];
+  stale_zones_total: number;
+  stale_threshold_days: number;
+  weekly_buckets: WeeklyBucket[];
+  photo_coverage: PhotoCoverage;
+  submissions_last_7_days: number;
+}
+
+// ---------------------------------------------------------------------------
 // Analytics dashboard
 // ---------------------------------------------------------------------------
 
