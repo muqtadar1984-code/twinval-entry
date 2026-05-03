@@ -15,6 +15,7 @@ from app.models.user import User
 from app.schemas.access_grant import AccessGrantCreate, AccessGrantOut
 from app.schemas.chain_audit import ChainAuditOut
 from app.schemas.common import Page
+from app.schemas.dashboard import DashboardResponse
 from app.schemas.observation import (
     ObservationListItem,
     ObservationOut,
@@ -23,7 +24,10 @@ from app.schemas.observation import (
 )
 from app.schemas.user import UserOut, UserRegisterRequest
 from app.services.auth import hash_password
+from app.services.dashboard import fetch_dashboard
 from app.services.hash_chain import verify_chain
+from app.models.property import PropertyStatus
+from app.models.stream import KycStatus
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -130,6 +134,46 @@ def void_observation(
     db.commit()
     db.refresh(entry)
     return entry
+
+
+# ---------------------------------------------------------------------------
+# Analytics dashboard — one row per sensor zone with rollups
+# ---------------------------------------------------------------------------
+
+
+@router.get("/dashboard/properties", response_model=DashboardResponse)
+def dashboard_properties(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+    stream: Optional[list[Stream]] = Query(default=None),
+    severity: Optional[list[Severity]] = Query(default=None),
+    property_status: Optional[PropertyStatus] = Query(default=None),
+    kyc_status: Optional[KycStatus] = Query(default=None),
+    submitted_from: Optional[datetime] = Query(default=None),
+    submitted_to: Optional[datetime] = Query(default=None),
+    search: Optional[str] = Query(default=None, max_length=200),
+    bypass_filters: bool = Query(default=False, alias="all"),
+):
+    """
+    Returns one row per sensor zone with property + owner + observation
+    rollups. Filters narrow which rows appear (row inclusion).
+
+    `?all=true` ignores all filters — used by the admin "export all data"
+    button. Still admin-only, so no extra ACL needed.
+    """
+    if bypass_filters:
+        return fetch_dashboard(db)
+
+    return fetch_dashboard(
+        db,
+        streams=stream,
+        severities=severity,
+        property_status=property_status,
+        kyc_status=kyc_status,
+        submitted_from=submitted_from,
+        submitted_to=submitted_to,
+        search=search,
+    )
 
 
 # ---------------------------------------------------------------------------

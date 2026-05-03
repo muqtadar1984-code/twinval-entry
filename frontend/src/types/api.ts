@@ -247,6 +247,53 @@ export interface AccessGrant {
   expires_at: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// Analytics dashboard
+// ---------------------------------------------------------------------------
+
+export interface DashboardZoneRow {
+  zone_id: UUID;
+  property_id: UUID;
+  owner_id: UUID;
+
+  stream: Stream;
+  owner_name: string;
+  kyc_status: KycStatus;
+
+  property_name: string;
+  city: string | null;
+  country: string | null;
+  property_status: PropertyStatus;
+  land_value: string | null;
+  structure_value: string | null;
+
+  building_label: string;
+  zone_label: string;
+  zone_active: boolean;
+
+  total_observations: number;
+  normal_count: number;
+  watch_count: number;
+  alert_count: number;
+  reviewed_count: number;
+  voided_count: number;
+
+  last_submitted_at: string | null;
+  last_severity: Severity | null;
+  last_submitted_by_name: string | null;
+  days_since_last: number | null;
+}
+
+export interface DashboardResponse {
+  rows: DashboardZoneRow[];
+  total_zones: number;
+  total_properties: number;
+  total_observations: number;
+  total_zones_unfiltered: number;
+  total_properties_unfiltered: number;
+  total_observations_unfiltered: number;
+}
+
 export interface AccessGrantCreate {
   user_id: UUID;
   scope_kind: AccessScopeKind;

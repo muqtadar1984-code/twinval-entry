@@ -4,6 +4,7 @@ import type {
   AccessGrant,
   AccessGrantCreate,
   ChainAuditResult,
+  DashboardResponse,
   LoginRequest,
   LoginResponse,
   MeResponse,
@@ -174,6 +175,34 @@ export const admin = {
       .then((r) => r.data),
   chainVerify: () =>
     http.get<ChainAuditResult>("/admin/chain/verify").then((r) => r.data),
+  dashboardProperties: (params?: {
+    stream?: Stream[];
+    severity?: Severity[];
+    property_status?: string;
+    kyc_status?: string;
+    submitted_from?: string;
+    submitted_to?: string;
+    search?: string;
+    all?: boolean;
+  }) => {
+    // axios serialises array params with `?key=a&key=b` when paramsSerializer
+    // is given; the default repeats — which is what FastAPI expects.
+    const flat: Record<string, string | string[] | boolean | undefined> = {};
+    if (params?.stream) flat.stream = params.stream;
+    if (params?.severity) flat.severity = params.severity;
+    if (params?.property_status) flat.property_status = params.property_status;
+    if (params?.kyc_status) flat.kyc_status = params.kyc_status;
+    if (params?.submitted_from) flat.submitted_from = params.submitted_from;
+    if (params?.submitted_to) flat.submitted_to = params.submitted_to;
+    if (params?.search) flat.search = params.search;
+    if (params?.all) flat.all = "true";
+    return http
+      .get<DashboardResponse>("/admin/dashboard/properties", {
+        params: flat,
+        paramsSerializer: { indexes: null },
+      })
+      .then((r) => r.data);
+  },
   registerUser: (body: UserRegister) =>
     http.post<User>("/admin/users", body).then((r) => r.data),
   listUsers: (params?: { limit?: number; offset?: number }) =>
