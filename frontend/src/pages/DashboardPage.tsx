@@ -57,7 +57,7 @@ export function DashboardPage() {
             Welcome back, {user?.name?.split(" ")[0] || "there"}
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Your contributions feed TwinVal's Confidence Index for IIUM properties.
+            Every submission is appended to a tamper-evident observation chain.
           </p>
         </div>
         <Link to="/submit" className="btn-primary">
