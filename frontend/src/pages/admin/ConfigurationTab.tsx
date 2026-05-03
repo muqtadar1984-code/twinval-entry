@@ -1,5 +1,6 @@
 import { Building2, ChevronDown, MapPin, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { InlineSpinner, LoadingState } from "../../components/LoadingState";
 import { ownerProfiles as ownerApi, properties as propApi, sensorZones as zoneApi } from "../../lib/api";
@@ -118,18 +119,51 @@ function KycEditor({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
 
-  // Click-outside to close
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Position the popover under the button, right-aligned, in viewport coords.
+  function repositionFromButton() {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const POPOVER_W = 224; // tailwind w-56
+    setCoords({
+      top: rect.bottom + window.scrollY + 4,
+      left: Math.max(8, rect.right + window.scrollX - POPOVER_W),
+    });
+  }
+
+  function toggleOpen() {
+    if (!open) repositionFromButton();
+    setOpen((s) => !s);
+  }
+
+  // Close on click-outside, scroll, or resize.
   useEffect(() => {
     if (!open) return;
-    function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
+    function handleClick(e: MouseEvent) {
+      const target = e.target as Node;
+      if (
+        popoverRef.current?.contains(target) ||
+        buttonRef.current?.contains(target)
+      ) {
+        return;
       }
+      setOpen(false);
     }
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
+    function handleScrollOrResize() {
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
+    };
   }, [open]);
 
   async function setKyc(status: KycStatus) {
@@ -151,10 +185,11 @@ function KycEditor({
   }
 
   return (
-    <div className="relative" ref={ref}>
+    <>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setOpen((s) => !s)}
+        onClick={toggleOpen}
         className={`pill cursor-pointer transition ${KYC_PILL[owner.kyc_status]} hover:brightness-95`}
         title="Click to update KYC status"
       >
@@ -162,38 +197,50 @@ function KycEditor({
         <ChevronDown className="h-3 w-3" />
       </button>
 
-      {open && (
-        <div className="absolute right-0 z-20 mt-1 w-56 rounded-lg border border-border bg-surface p-1.5 shadow-elevated">
-          <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink-subtle">
-            Update KYC status
-          </div>
-          {KYC_OPTIONS.map((status) => {
-            const current = status === owner.kyc_status;
-            return (
-              <button
-                key={status}
-                type="button"
-                onClick={() => setKyc(status)}
-                disabled={busy}
-                className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-canvas ${
-                  current ? "font-semibold text-primary" : "text-ink"
-                }`}
-              >
-                <span className="capitalize">{status}</span>
-                {busy && status !== owner.kyc_status ? (
-                  <InlineSpinner className="h-3.5 w-3.5" />
-                ) : current ? (
-                  <span className="text-xs text-ink-subtle">current</span>
-                ) : null}
-              </button>
-            );
-          })}
-          {error && (
-            <p className="px-2 pt-1 text-xs text-danger">{error}</p>
-          )}
-        </div>
-      )}
-    </div>
+      {open &&
+        coords &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            style={{
+              position: "absolute",
+              top: coords.top,
+              left: coords.left,
+              zIndex: 60,
+            }}
+            className="w-56 rounded-lg border border-border bg-surface p-1.5 shadow-elevated"
+          >
+            <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink-subtle">
+              Update KYC status
+            </div>
+            {KYC_OPTIONS.map((status) => {
+              const current = status === owner.kyc_status;
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => setKyc(status)}
+                  disabled={busy}
+                  className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-canvas ${
+                    current ? "font-semibold text-primary" : "text-ink"
+                  }`}
+                >
+                  <span className="capitalize">{status}</span>
+                  {busy && status !== owner.kyc_status ? (
+                    <InlineSpinner className="h-3.5 w-3.5" />
+                  ) : current ? (
+                    <span className="text-xs text-ink-subtle">current</span>
+                  ) : null}
+                </button>
+              );
+            })}
+            {error && (
+              <p className="px-2 pt-1 text-xs text-danger">{error}</p>
+            )}
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
 
